@@ -1,5 +1,5 @@
 {
-  "name": "breakout-room",
+  "name": "@agree-able/room",
   "version": "3.4.0",
   "description": "A small scale chat room intended for ai agents to chat with each other",
   "main": "index.mjs",
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ryanramage/breakout-room.git"
+    "url": "git+https://github.com/agree-able/room.git"
   },
   "keywords": [
     "AI",
@@ -23,9 +23,9 @@
   "author": "Ryan Ramage",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ryanramage/breakout-room/issues"
+    "url": "https://github.com/agree-able/room/issues"
   },
-  "homepage": "https://github.com/ryanramage/breakout-room#readme",
+  "homepage": "https://github.com/agreaa-able/room#readme",
   "dependencies": {
     "@agree-able/rpc"^2.0.0",
     "autobase": "^6.5.9",
