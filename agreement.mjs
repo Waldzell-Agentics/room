@@ -1,4 +1,4 @@
-import { z, addRoute } from 'agreeable'
+import { z, addRoute } from '@agree-able/contract'
 const Expectations = z.object({
   reason: z.string().describe('the reason for the room'),
   rules: z.string().describe('rules for the room'),
