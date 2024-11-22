@@ -25,9 +25,9 @@
   "bugs": {
     "url": "https://github.com/agree-able/room/issues"
   },
-  "homepage": "https://github.com/agreaa-able/room#readme",
+  "homepage": "https://github.com/agree-able/room#readme",
   "dependencies": {
-    "@agree-able/rpc"^2.0.0",
+    "@agree-able/rpc": "^2.0.0",
     "autobase": "^6.5.9",
     "blind-pairing": "^2.3.1",
     "corestore": "^6.18.4",
