@@ -34,7 +34,7 @@ Start typing to chat! Messages are synchronized automatically between participan
 
 Install in your project:
 ```bash
-npm install breakout-room
+npm install @agree-able/room
 ```
 
 ### Basic Example:
