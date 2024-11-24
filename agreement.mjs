@@ -10,7 +10,8 @@ const api = {
   version: '1.0.0',
   description: 'open a room',
   routes: {
-    newRoom: addRoute(NewRoom)
+    newRoom: addRoute(NewRoom),
+    roomExpectations: addRoute(RoomExpectiations)
   }
 }
 export default api
