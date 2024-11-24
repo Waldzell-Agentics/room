@@ -1,65 +1,88 @@
-breakout-room
-=============
+# Breakout Room
 
-A small place to dm chat over p2p. Gearing up for Bot to Bot comms. 
+A lightweight peer-to-peer chat system designed for both human-to-human and bot-to-bot communication. Built with privacy and simplicity in mind, Breakout Room enables direct messaging without servers or central authorities.
 
-quickstart test
-===============
+## Features
+
+- 🔒 Fully peer-to-peer communication
+- 🤖 Bot-friendly API for automated interactions
+- 📝 Complete chat transcripts
+- 🚪 Simple room creation and joining
+- 🔌 Easy integration with AI/bot systems
+
+## Quick Start
+
+Install globally to use the CLI:
+```bash
+npm install -g breakout-room
 ```
- > npx breakout-room
-Give out invite: yry3hiqo3hz4t8puopbptrc1wspd8g7ucdhojnmazjr3fiuiukhb185syc6kia1oi8waeu5xdpa4pd7ora9rno7iffqryrua5jm5iqxokc
+
+### Create a new chat room:
+```bash
+npx breakout-room
+# You'll receive an invite code to share
 ```
 
-then in another terminal
+### Join an existing room:
+```bash
+npx breakout-room <invite-code>
 ```
- > npx breakout-room yry3hiqo3hz4t8puopbptrc1wspd8g7ucdhojnmazjr3fiuiukhb185syc6kia1oi8waeu5xdpa4pd7ora9rno7iffqryrua5jm5iqxokc
 
+Start typing to chat! Messages are synchronized automatically between participants.
+
+## Programmatic Usage
+
+Install in your project:
+```bash
+npm install breakout-room
 ```
 
-Then you can type messages in each terminal to have it go into the chat log.
-
-see [basic example](cli.mjs) for using the breakout-room
-see [AI bot example](https://github.com/ryanramage/breakout-room-bot) for using it with openAI to create a bot.
-
-
-api usage
---------
-
-npm i breakout-room
-
-```
+### Basic Example:
+```javascript
 import { BreakoutRoom } from 'breakout-room'
 
-const invite = process.argv[2]
-
-async function run () {
+async function startChat(invite) {
   const room = new BreakoutRoom({ invite })
   const hostInvite = await room.ready()
-  if (hostInvite) console.log('Give out invite:', hostInvite)
+  
+  if (hostInvite) console.log('Share this invite:', hostInvite)
 
-  // send room messages from standard in
-  process.stdin.on('data', async (data) => await room.message(data.toString()))
+  // Send messages
+  room.message('Hello world!')
 
-  room.on('peerEntered', (peerKey) => console.log('peer entered the room', peerKey))
-  room.on('peerLeft', (peerKey) => {
-    console.log('peer left the room', peerKey)
-    room.exit()
-    process.exit(0)
-  })
-
-  room.on('message', async (m) => {
-    console.log('remote message recieved', m)
+  // Listen for events
+  room.on('message', async (msg) => {
+    console.log('New message:', msg)
     const transcript = await room.getTranscript()
-    console.log('Transcript:', transcript)
+    console.log('Chat history:', transcript)
   })
 
-  const shutdown = async () => {
-    await room.exit()
-    process.exit(0)
-  }
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
+  room.on('peerEntered', (peer) => console.log('New peer:', peer))
+  room.on('peerLeft', (peer) => console.log('Peer left:', peer))
 }
-run()
 
+// Start a new room
+startChat()
+// Or join with invite
+startChat('your-invite-code')
 ```
+
+## Use Cases
+
+- **Bot Development**: Create chatbots that can communicate directly with users or other bots
+- **Private Messaging**: Set up quick, secure chat rooms for team communication
+- **AI Integration**: Perfect foundation for AI-powered chat applications
+- **Testing & Development**: Ideal for testing chat-based features without infrastructure
+
+## Examples
+
+- [Basic CLI Usage](cli.mjs)
+- [OpenAI Bot Integration](https://github.com/ryanramage/breakout-room-bot)
+
+## Contributing
+
+Contributions welcome! Feel free to open issues or submit PRs.
+
+## License
+
+MIT
