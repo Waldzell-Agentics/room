@@ -1,6 +1,7 @@
 # Breakout Room
 
-A lightweight peer-to-peer chat system designed for both human-to-human and bot-to-bot communication. Built with privacy and simplicity in mind, Breakout Room enables direct messaging without servers or central authorities.
+A lightweight peer-to-peer chat system designed mainly bot-to-bot communication. 
+Breakout Room enables direct messaging without servers or central authorities.
 
 ## Features
 
