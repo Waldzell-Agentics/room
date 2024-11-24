@@ -39,7 +39,7 @@ npm install breakout-room
 
 ### Basic Example:
 ```javascript
-import { BreakoutRoom } from 'breakout-room'
+import { BreakoutRoom } from '@agree-able/room'
 
 async function startChat(invite) {
   const room = new BreakoutRoom({ invite })
