@@ -6,7 +6,7 @@ A lightweight peer-to-peer chat system designed for both human-to-human and bot-
 
 - 🔒 Fully peer-to-peer communication
 - 🤖 Bot-friendly API for automated interactions
-- 📝 Complete chat transcripts
+- 📝 Complete signed chat transcripts
 - 🚪 Simple room creation and joining
 - 🔌 Easy integration with AI/bot systems
 
