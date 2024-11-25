@@ -223,6 +223,7 @@ export class BreakoutRoom extends EventEmitter {
 
   async _onHostInvite (result) {
     if (result.key) {
+      // can read result.additional data here
       this._connectOtherCore(result.key)
       this.metadata.host = {
         publicKey: z32.encode(result.key)
@@ -233,7 +234,7 @@ export class BreakoutRoom extends EventEmitter {
 
   async _onAddMember (publicKey, candidate) {
     candidate.open(publicKey)
-    candidate.confirm({ key: this.autobase.local.key })
+    candidate.confirm({ key: this.autobase.local.key }) // can add additional https://github.com/holepunchto/blind-pairing-core/blob/main/index.js#L190
     this._connectOtherCore(candidate.userData)
   }
 
