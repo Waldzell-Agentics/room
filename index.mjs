@@ -82,7 +82,9 @@ export class RoomManager extends EventEmitter {
 
   async startAgreeable (seed, expectations) {
     /** @type { z.infer<NewRoom> } newRoom */
-    const newRoom = async () => this.createReadyRoom()
+    const newRoom = async (agreement) => {
+      this.createReadyRoom()
+    }
     const roomExpectations = async () => expectations
     const api = { newRoom, roomExpectations }
     const opts = { seed, dht: this.swarm.dht }
