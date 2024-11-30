@@ -217,11 +217,12 @@ export class BreakoutRoom extends EventEmitter {
     if (this.initialized) return this.invite
     this.initialized = true
     await this.autobase.ready()
+    this.metadata.who = z32.encode(this.autobase.local.key)
     // some hacky stuff to only emit remote messages, and only emit once
     this.lastEmitMessageLength = 0
     this.autobase.view.on('append', async () => {
       const entry = await this.autobase.view.get(this.autobase.view.length - 1)
-      if (entry.who === z32.encode(this.autobase.local.key)) return
+      if (entry.who === this.metadata.who) return
       if (entry.event === 'leftChat') return this.emit('peerLeft', entry.who)
       if (this.lastEmitMessageLength === this.autobase.view.length) return
       this.lastEmitMessageLength = this.autobase.view.length
@@ -269,7 +270,7 @@ export class BreakoutRoom extends EventEmitter {
   async message (data) {
     await this.autobase.append({
       when: Date.now(),
-      who: z32.encode(this.autobase.local.key),
+      who: this.metadata.who,
       data
     })
   }
@@ -312,7 +313,7 @@ export class BreakoutRoom extends EventEmitter {
   async exit () {
     await this.autobase.append({
       when: Date.now(),
-      who: z32.encode(this.autobase.local.key),
+      who: this.metadata.who,
       event: 'leftChat'
     })
     await this.autobase.update()
