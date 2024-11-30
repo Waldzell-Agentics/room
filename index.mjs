@@ -1,4 +1,5 @@
-import { loadAgreement, host, z } from '@agree-able/rpc'
+import { loadAgreement, host } from '@agree-able/rpc'
+import { signText, verifySignedText, generateChallengeText, getKeybaseProofChain } from '@agree-able/invite'
 import Autobase from 'autobase'
 import BlindPairing from 'blind-pairing'
 import Corestore from 'corestore'
@@ -6,7 +7,9 @@ import Hyperswarm from 'hyperswarm'
 import RAM from 'random-access-memory'
 import z32 from 'z32'
 import { EventEmitter } from 'events'
-import { NewRoom } from './agreement.mjs'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
 
 /**
  * @typedef {Object} RoomManagerOptions
@@ -36,6 +39,7 @@ export class RoomManager extends EventEmitter {
     this.swarm = opts.swarm ? opts.swarm : (this.internalManaged.swarm = true, new Hyperswarm())
     this.pairing = opts.pairing ? opts.pairing : (this.internalManaged.pairing = true, new BlindPairing(this.swarm))
     this.rooms = {}
+    this.challengeTexts = {} // move to a hyper thing later
   }
 
   /**
@@ -80,14 +84,61 @@ export class RoomManager extends EventEmitter {
     return invite
   }
 
-  async startAgreeable (seed, expectations) {
-    /** @type { z.infer<NewRoom> } newRoom */
-    const newRoom = async (agreement) => {
-      this.createReadyRoom()
+  async startAgreeable (config, expectations, validateParticipant) {
+    let privateKeyArmored = config.privateKeyArmored
+    if (config.privateKeyArmoredFile) {
+      privateKeyArmored = fs.readFileSync(resolvePath(config.privateKeyArmoredFile), 'utf8')
     }
-    const roomExpectations = async () => expectations
+
+    /** @type { z.infer<NewRoom> } newRoom */
+    const newRoom = async (agreement, { remotePublicKey }) => {
+      const participantDetails = { remotePublicKey }
+      if (expectations.whoamiRequired) {
+        if (!agreement.whoami) return { ok: false, reason: 'whoami requested and not provided' }
+        if (agreement.whoami.keybase) {
+          if (!agreement.whoami.keybase.username) throw new Error('participant username was not returned')
+          const expectectChallengeText = this.challengeTexts[remotePublicKey]
+          if (expectectChallengeText !== agreement.whoami.keybase.challengeResponse.text) return { ok: false, reason: 'challengeText was modified' }
+          participantDetails.whoami = { keybase: { username: agreement.whoami.keybase.username } }
+          participantDetails.whoami.keybase.verified = await verifySignedText(agreement.whoami.keybase.challengeResponse, agreement.whoami.keybase.username) // external
+          participantDetails.whoami.keybase.chain = await getKeybaseProofChain(agreement.whoami.keybase.username) // external
+        }
+        if (!participantDetails.whoami) return { ok: false, reason: 'participant did not provide any known whoami response' }
+      }
+      if (validateParticipant) {
+        const results = await validateParticipant(agreement.accept, participantDetails)
+        if (!results.ok) return { ok: false, reason: results.reason }
+      }
+
+      // if bad things, return { ok: false, reason: 'did not like it' }
+      // we need to do lots of work here to verify the new room
+      const invite = await this.createReadyRoom()
+      return { ok: true, invite }
+    }
+    const roomExpectations = async (query, { remotePublicKey }) => {
+      const _expectations = structuredClone(expectations)
+      if (query.challengeText) {
+        try {
+          // we have been asked to sign the challengeText
+          _expectations.whoami = {
+            keybase: {
+              username: config.keybaseUsername,
+              challengeResponse: await signText(query.challengeText, privateKeyArmored)
+            }
+          }
+        } catch (e) {
+          // failed to generate challengeResponse
+          console.log(e)
+        }
+      }
+      if (!expectations.whoamiRequired) return _expectations
+      const challengeText = await generateChallengeText()
+      this.challengeTexts[remotePublicKey] = challengeText
+      _expectations.challengeText = challengeText
+      return _expectations
+    }
     const api = { newRoom, roomExpectations }
-    const opts = { seed, dht: this.swarm.dht }
+    const opts = { seed: config.seed, dht: this.swarm.dht }
     const results = await host(await loadAgreement('./agreement.mjs', import.meta.url), api, opts)
     results.agreeableKey = z32.encode(results.keyPair.publicKey)
     return results
@@ -328,4 +379,12 @@ function generateRoomId () {
   const timestamp = Date.now().toString(36) // Base36 timestamp
   const random = Math.random().toString(36).substr(2, 5) // 5 random chars
   return `room-${timestamp}-${random}`
+}
+
+// Function to resolve a path with ~
+function resolvePath (inputPath) {
+  if (inputPath.startsWith('~')) {
+    return path.join(os.homedir(), inputPath.slice(1))
+  }
+  return path.resolve(inputPath)
 }
