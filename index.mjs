@@ -389,3 +389,29 @@ function resolvePath (inputPath) {
   }
   return path.resolve(inputPath)
 }
+
+export const autoValidatedConfirmRoomEnter = async (config, expectations, hostInfo) => {
+  if (config.hostProveWhoami) {
+    const verified = hostInfo?.whoami?.keybase?.verified
+    if (!verified) return { rules: false, reason: false }
+    const connectedDomain = config.domain
+    const verifiedDomains = hostInfo?.whoami?.keybase?.chain?.dns || []
+    const domainVerified = connectedDomain && verifiedDomains.some(d =>
+      d.username === connectedDomain && d.state === 1
+    )
+    if (!domainVerified) return { rules: false, reason: false }
+  }
+  if (config.agree === false) return { rules: false, reason: false }
+  return { rules: true, reason: true }
+}
+
+export const autoValidateParticipant = async (config, acceptance, extraInfo) => {
+  if (!acceptance.reason || !acceptance.rules) {
+    return { ok: false }
+  }
+  // Auto-reject if whoami required but verification failed
+  if (config.whoamiRequired && extraInfo?.whoami?.keybase && !extraInfo.whoami.keybase.verified) {
+    return { ok: false }
+  }
+  return { ok: true }
+}
