@@ -57,6 +57,10 @@ export class RoomManager extends EventEmitter {
    * @param {Object} [opts={}] - Room configuration options
    * @param {string} [opts.invite] - Optional invite code
    * @param {Object} [opts.metadata] - Optional room metadata
+   * @param {string} [opts.keybaseUsername] - Optional keybase username
+   * @param {boolean} [opts.signMessages] - Optional flag to sign each sent message
+   * @param {string} [opts.keybaseUsername] - Optional keybase username
+   * @param {string} [opts.privateKeyArmored] - Optional private key needed to sign messages
    * @returns {BreakoutRoom} New room instance
    */
   createRoom (opts = {}) {
@@ -65,6 +69,10 @@ export class RoomManager extends EventEmitter {
     if (opts.invite) baseOpts.invite = opts.invite
     baseOpts.metadata = opts.metadata || {}
     baseOpts.roomId = roomId
+    // allow for message signing
+    if (opts.signMessages) baseOpts.signMessages = opts.signMessages
+    if (opts.privateKeyArmored) baseOpts.privateKeyArmored = opts.privateKeyArmored
+    if (opts.keybaseUsername) baseOpts.keybaseUsername = opts.keybaseUsername
     const room = new BreakoutRoom(baseOpts)
     this.rooms[roomId] = room
     room.on('roomClosed', () => {
@@ -85,9 +93,8 @@ export class RoomManager extends EventEmitter {
   }
 
   async startAgreeable (config, expectations, validateParticipant) {
-    let privateKeyArmored = config.privateKeyArmored
     if (config.privateKeyArmoredFile) {
-      privateKeyArmored = fs.readFileSync(resolvePath(config.privateKeyArmoredFile), 'utf8')
+      config.privateKeyArmored = fs.readFileSync(resolvePath(config.privateKeyArmoredFile), 'utf8')
     }
 
     /** @type { z.infer<NewRoom> } newRoom */
@@ -112,7 +119,7 @@ export class RoomManager extends EventEmitter {
 
       // if bad things, return { ok: false, reason: 'did not like it' }
       // we need to do lots of work here to verify the new room
-      const invite = await this.createReadyRoom()
+      const invite = await this.createReadyRoom(config)
       return { ok: true, invite }
     }
     const roomExpectations = async (query, { remotePublicKey }) => {
@@ -123,7 +130,7 @@ export class RoomManager extends EventEmitter {
           _expectations.whoami = {
             keybase: {
               username: config.keybaseUsername,
-              challengeResponse: await signText(query.challengeText, privateKeyArmored)
+              challengeResponse: await signText(query.challengeText, config.privateKeyArmored)
             }
           }
         } catch (e) {
@@ -152,7 +159,7 @@ export class RoomManager extends EventEmitter {
     // Clean up other resources
     if (this.internalManaged.pairing) await this.pairing.close()
     if (this.internalManaged.swarm) await this.swarm.destroy()
-    if (this.internalManaged.corestere) await this.corestore.close()
+    if (this.internalManaged.corestore) await this.corestore.close()
   }
 
   async installSIGHandlers () {
@@ -180,6 +187,9 @@ export class RoomManager extends EventEmitter {
  * @property {BlindPairing} [pairing] - Optional BlindPairing instance
  * @property {string} [invite] - Optional invite code
  * @property {Object} [metadata] - Optional room metadata
+ * @param {boolean} [signMessages] - Optional flag to sign each sent message
+ * @param {string} [keybaseUsername] - Optional keybase username
+ * @param {string} [privateKeyArmored] - Optional private key needed to sign messages
  */
 
 /**
@@ -206,6 +216,9 @@ export class BreakoutRoom extends EventEmitter {
     this.autobase = new Autobase(this.corestore, null, { apply, open, valueEncoding: 'json' })
     if (opts.invite) this.invite = z32.decode(opts.invite)
     this.metadata = opts.metadata || {}
+    this.signMessages = opts.signMessages
+    this.privateKeyArmored = opts.privateKeyArmored
+    this.keybaseUsername = opts.keybaseUsername
     this.initialized = false
   }
 
@@ -224,10 +237,19 @@ export class BreakoutRoom extends EventEmitter {
       const entry = await this.autobase.view.get(this.autobase.view.length - 1)
       if (entry.who === this.metadata.who) return
       if (entry.event === 'leftChat') return this.emit('peerLeft', entry.who)
+      if (entry.event === 'joinedChat') return this.emit('peerEntered', entry)
       if (this.lastEmitMessageLength === this.autobase.view.length) return
       this.lastEmitMessageLength = this.autobase.view.length
       process.nextTick(() => this.emit('message', entry))
     })
+    const welcomeMessage = {
+      when: Date.now(),
+      who: this.metadata.who,
+      event: 'joinedChat'
+    }
+    if (this.keybaseUsername) welcomeMessage.keybaseUsername = this.keybaseUsername
+    await this.autobase.append(welcomeMessage)
+
     this.swarm.join(this.autobase.local.discoveryKey)
     this.swarm.on('connection', conn => this.corestore.replicate(conn))
 
@@ -268,11 +290,17 @@ export class BreakoutRoom extends EventEmitter {
    * @returns {Promise<void>}
    */
   async message (data) {
-    await this.autobase.append({
+    const message = {
       when: Date.now(),
       who: this.metadata.who,
       data
-    })
+    }
+    if (this.signMessages && this.privateKeyArmored && typeof data === 'string') {
+      const signature = await signText(data, this.privateKeyArmored)
+      message.signature = signature.armoredSignature
+    }
+    await this.autobase.append(message)
+    return message
   }
 
   async _onHostInvite (result) {
@@ -294,7 +322,6 @@ export class BreakoutRoom extends EventEmitter {
 
   async _connectOtherCore (key) {
     await this.autobase.append({ addWriter: key })
-    this.emit('peerEntered', z32.encode(key))
   }
 
   /**
